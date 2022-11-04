@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B5F702A7-33CA-48C1-9D20-73755C9918EB}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
+		.github\workflows\docker-image.yml = .github\workflows\docker-image.yml
 	EndProjectSection
 EndProject
 Global
