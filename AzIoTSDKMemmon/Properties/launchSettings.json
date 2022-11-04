@@ -1,13 +1,15 @@
-﻿{
+{
   "profiles": {
     "AzIoTSDKMemmon": {
       "commandName": "Project",
-      "dotnetRunMessages": true,
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development",
         "ConnectionStrings__cs": "HostName=rido.azure-devices.net;DeviceId=azsdk-memmon;SharedAccessKey=ZuiEOAYqslN5rQfTlhm73GA7ONSK2otQVdejccU1bOg="
-
-      }
+      },
+      "dotnetRunMessages": true
+    },
+    "Docker": {
+      "commandName": "Docker"
     }
   }
 }
