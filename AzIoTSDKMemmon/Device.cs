@@ -33,8 +33,7 @@ namespace AzIoTSDKMemmon
         private const bool default_enabled = false;
         private const int default_interval = 500;
 
-        private string lastDiscconectReason = string.Empty;
-
+        string connectionString;
         private DeviceClient? client = null;
 
         const string modelId = "dtmi:rido:memmon;2";
@@ -42,7 +41,7 @@ namespace AzIoTSDKMemmon
         bool Enabled = default_enabled;
         int Interval = default_interval;
         private string infoVersion = string.Empty;
-
+        
         public Device(ILogger<Device> logger, IConfiguration configuration)
         {
             _logger = logger;
@@ -51,8 +50,9 @@ namespace AzIoTSDKMemmon
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            client = DeviceClient.CreateFromConnectionString(_configuration.GetConnectionString("cs"), TransportType.Mqtt_Tcp_Only, new ClientOptions { ModelId = modelId });
-
+            connectionString = _configuration.GetConnectionString("cs");
+            client = DeviceClient.CreateFromConnectionString(connectionString, TransportType.Mqtt_Tcp_Only, new ClientOptions { ModelId = modelId });
+            var twin = await client.GetTwinAsync();
             infoVersion = client.ProductInfo;
 
             await client.SetDesiredPropertyUpdateCallbackAsync(DesiredPropertiesHanlder, null, stoppingToken);
@@ -61,9 +61,26 @@ namespace AzIoTSDKMemmon
             await client.SetMethodHandlerAsync("malloc", Command_malloc_Handler, null, stoppingToken);
             await client.SetMethodHandlerAsync("free", Command_free_Handler, null, stoppingToken);
 
+            Enabled = InitProperty<bool>(twin, "enabled", default_enabled);
+            Interval = (int)InitProperty<long>(twin, "interval", default_interval);
 
             TwinCollection reported = new TwinCollection();
             reported["started"] = DateTime.Now;
+            reported["interval"] = new
+            {
+                value = Interval,
+                ac = 200,
+                av = twin.Properties.Reported.Version,
+                ad = "prop initialized"
+            };
+            reported["enabled"] = new
+            {
+                value = Enabled,
+                ac = 200,
+                av = twin.Properties.Reported.Version,
+                ad = "prop initialized"
+            };
+
             await client.UpdateReportedPropertiesAsync(reported, stoppingToken);
 
             RefreshScreen(this);
@@ -89,6 +106,21 @@ namespace AzIoTSDKMemmon
                 }
             await Task.Delay(Interval, stoppingToken);
             }
+        }
+
+        private T InitProperty<T>(Twin twin, string propName, T default_value)
+        {
+            T desValue = twin.Properties.Desired.GetPropertyValue<T>(propName);
+            if (desValue != null)
+            {
+                return desValue;
+            }
+            T repValue = twin.Properties.Reported.GetPropertyValue<T>(propName);
+            if (repValue != null)
+            {
+                return repValue;
+            }
+            return default_value;
         }
 
         private Task<MethodResponse> Command_getRuntimeStats_Handler(MethodRequest methodRequest, object userContext)
@@ -125,6 +157,7 @@ namespace AzIoTSDKMemmon
 
         private async Task DesiredPropertiesHanlder(TwinCollection desiredProperties, object userContext)
         {
+            twinRecCounter++;
             TwinCollection ack = new TwinCollection();
             if (desiredProperties.Contains("enabled"))
             {
@@ -197,9 +230,7 @@ namespace AzIoTSDKMemmon
             return Task.FromResult(new MethodResponse(respPayload, 200));
         }
 
-#pragma warning disable IDE0052 // Remove unread private members
-        private Timer screenRefresher;
-#pragma warning restore IDE0052 // Remove unread private members
+        private Timer? screenRefresher = null;
         private void RefreshScreen(object state)
         {
             string RenderData()
@@ -212,6 +243,7 @@ namespace AzIoTSDKMemmon
                 AppendLineWithPadRight(sb, " ");
                 //AppendLineWithPadRight(sb, $"{connectionSettings?.HostName}:{connectionSettings?.TcpPort}");
                 //AppendLineWithPadRight(sb, $"{connectionSettings.ClientId} (Auth:{connectionSettings.Auth}/ TLS:{connectionSettings.UseTls})");
+                AppendLineWithPadRight(sb, connectionString);
                 AppendLineWithPadRight(sb, " ");
                 AppendLineWithPadRight(sb, string.Format("{0:8} | {1:15} | {2}", "Property", "Value".PadRight(15), "Version"));
                 AppendLineWithPadRight(sb, string.Format("{0:8} | {1:15} | {2}", "--------", "-----".PadLeft(15, '-'), "------"));
