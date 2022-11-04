@@ -110,15 +110,21 @@ namespace AzIoTSDKMemmon
 
         private T InitProperty<T>(Twin twin, string propName, T default_value)
         {
-            T desValue = twin.Properties.Desired.GetPropertyValue<T>(propName);
-            if (desValue != null)
+            if (twin.Properties.Desired.Contains(propName))
             {
-                return desValue;
+                T desValue = twin.Properties.Desired.GetPropertyValue<T>(propName);
+                if (desValue != null)
+                {
+                    return desValue;
+                }
             }
-            T repValue = twin.Properties.Reported.GetPropertyValue<T>(propName);
-            if (repValue != null)
+            if (twin.Properties.Reported.Contains(propName))
             {
-                return repValue;
+                T repValue = twin.Properties.Reported.GetPropertyValue<T>(propName);
+                if (repValue != null)
+                {
+                    return repValue;
+                }
             }
             return default_value;
         }
